@@ -12,9 +12,9 @@ using namespace std;
 using namespace Eigen;
 
 // 文件路径，如果不对，请调整
-string left_file = "../left.png";
-string right_file = "../right.png";
-string disparity_file = "../disparity.png";
+string left_file = "../code/left.png";
+string right_file = "../code/right.png";
+string disparity_file = "../code/disparity.png";
 
 // 在panglin中画图，已写好，无需调整
 void showPointCloud(const vector<Vector4d, Eigen::aligned_allocator<Vector4d>> &pointcloud);
