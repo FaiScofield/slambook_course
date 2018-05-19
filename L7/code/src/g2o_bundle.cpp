@@ -102,7 +102,7 @@ void WriteToBALProblemSE3(BALProblem* bal_problem, g2o::SparseOptimizer* optimiz
 
     double* raw_cameras = bal_problem->mutable_cameras();
     for(int i = 0; i < num_cameras; ++i) {
-        VertexCameraBAL* pCamera = dynamic_cast<VertexCameraBAL*>(optimizer->vertex(i));
+        VertexCameraBAL* pCamera = dynamic_cast<VertexCameraBAL*>(optimizer->vertex(i) );
         Eigen::Matrix<double, 6, 1> se3 = pCamera->estimate()._SE3.log();
         Eigen::VectorXd NewCameraVec(9);
         NewCameraVec << se3[3], se3[4], se3[5], se3[0], se3[1], se3[2], pCamera->estimate()._f, pCamera->estimate()._k1, pCamera->estimate()._k2;
