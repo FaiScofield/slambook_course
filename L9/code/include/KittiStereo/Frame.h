@@ -46,13 +46,13 @@ public:
     std::vector<cv::KeyPoint>   kpsRight_;  // 右图像的特征点
     std::vector<double>         kpsDepth_;  // 特征点的深度值
     std::vector<cv::DMatch>     matches_;   // 左右图之间的匹配情况
-//    std::vector<MapPoint*>      mapPoints_; // 该帧生成的MapPoint
 
     // ORB 参数
     int             numFeatures_;           // 待提取的特征点总数
     int             pyramidLevels_;         // 高斯金字塔层数
     float           scaleFactor_;           // 金字塔图像之间的尺度
     float           matchRatio_;            // 特征点描述子间最小距离的匹配比率
+    int             viewMatches_;           // 是否可视化左右图像的匹配情况
 
 public:
     // 构造函数

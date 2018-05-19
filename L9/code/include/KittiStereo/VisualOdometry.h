@@ -39,14 +39,15 @@ public:
         LOST
     };
 
-    int     numInliers_;           // ICP局内点个数
-    int     numLost_;              // 丢失帧次数
+    int     numInliers_;            // ICP局内点个数
+    int     numLost_;               // 丢失帧次数
 
-    float   matchRatio_;            // ratio for selecting  good matches
+    float   matchRatio_;            // 挑选 good matches 的比率
     int     maxNumlost_;            // 最大连续丢帧数
     int     minInliers_;            // 最小局内点数
-    double  keyFrameMinRot_;         // 两关键帧间的最小旋转值
-    double  keyFrameMinTrans_;       // 两关键帧间的最小平移量
+    float   minRatio_;              // 当前局内点与当前局部地图点数的最小比率，低于这个比率的帧跳过
+    double  keyFrameMinRot_;        // 两关键帧间的最小旋转值
+    double  keyFrameMinTrans_;      // 两关键帧间的最小平移量
     double  mapPointEraseRatio_;    // 地图点剔除率
 
     VOState     state_;             // 当前帧的VO状态
@@ -83,8 +84,6 @@ protected:
     void addMapPoints();
     bool checkEstimatedPose();
     bool checkKeyFrame();
-
-    double getViewAngle(Frame::Ptr frame, MapPoint::Ptr point);
 };
 
 } // namespace

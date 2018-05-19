@@ -38,6 +38,7 @@ VisualOdometry::VisualOdometry() :
     matchRatio_         = Config::get<float>("match_ratio");
     maxNumlost_         = Config::get<int>("max_num_lost");
     minInliers_         = Config::get<int>("min_inliers");
+    minRatio_           = Config::get<float>("min_ratio");
     keyFrameMinRot_     = Config::get<double>("keyframe_rotation");
     keyFrameMinTrans_   = Config::get<double>("keyframe_translation");
     mapPointEraseRatio_ = Config::get<double>("map_point_erase_ratio");
@@ -49,7 +50,7 @@ VisualOdometry::~VisualOdometry()
 bool VisualOdometry::addFrame(Frame::Ptr frame)
 {
     if(frame->kpsLeft_.size() != frame->kpsDepth_.size() ||
-       frame->kpsLeft_.size() != frame->descLeft_.rows ) {
+       frame->kpsLeft_.size() != (unsigned)frame->descLeft_.rows ) {
         cerr << "[VO] Wrong size of kpsLeft_ or kpsDepth_ or descLeft_.rows!!" << endl;
     }
 
@@ -74,14 +75,14 @@ bool VisualOdometry::addFrame(Frame::Ptr frame)
             featureMatching();
             poseEstimationPnP();
 //            poseEstimationICP();
-            if ( checkEstimatedPose() == true ) {   // 位姿估计良好的情况
+            if ( checkEstimatedPose() == true ) {  // 位姿估计良好的情况
                 curr_->Tcw_ = Tcw_estimated_;
                 optimizeMap();
                 numLost_ = 0;
-                if ( checkKeyFrame() == true ) {    // 判断其是否可以为关键帧
+                if ( checkKeyFrame() == true ) {  // 判断其是否可以为关键帧
                     addKeyFrame();
                 }
-            } else {    // 多种原因造成位姿误差太大的情况
+            } else {  // 多种原因造成位姿误差太大的情况
                 numLost_++;
                 if ( numLost_ > maxNumlost_ ) {
                     cerr << "[VO] 'num_lost' has reach the 'max_num_lost' threthod." << endl;
@@ -106,7 +107,7 @@ bool VisualOdometry::addFrame(Frame::Ptr frame)
 void VisualOdometry::featureMatching()
 {
     boost::timer timer;
-    vector<cv::DMatch> matches, matches_2nd, matches_final;
+    vector<cv::DMatch> matches;
 
     // 在地图中选取候选点
     cv::Mat desp_map;
@@ -131,72 +132,13 @@ void VisualOdometry::featureMatching()
 
     match_3dpts_.clear();
     match_2dkp_index_.clear();
-
-//    vector<MapPoint::Ptr> match_3dpts_before_ransac;
-//    vector<int> match_2dkp_index_before_ransac;
-//    vector<cv::Point2f> mp2pixel, kpcurr;
-//    cv::Mat descMapPoints_before_ransac;
-
     for ( cv::DMatch& m : matches ) {
         if ( m.distance < std::max<float>(min_dis * matchRatio_, 20.0) )  {
+            candidate[m.queryIdx]->good_ = true;
             match_3dpts_.push_back(candidate[m.queryIdx]);
             match_2dkp_index_.push_back(m.trainIdx);
-
-//            match_3dpts_before_ransac.push_back(candidate[m.queryIdx]);
-//            match_2dkp_index_before_ransac.push_back(m.trainIdx);
-//            descMapPoints_before_ransac.push_back(desp_map.row(m.queryIdx).clone());
-
-//            Vector2d pixel = ref_->camera_->world2pixel(
-//                        candidate[m.queryIdx]->pos_, ref_->Tcw_);
-//            mp2pixel.push_back(cv::Point2d(pixel[0], pixel[1]));
-//            kpcurr.push_back(keypointsCurr_[m.trainIdx].pt);
         }
     }
-
-
-    // RANSAC 再次消除误匹配
-    /*
-    vector<uchar> RansacStatus;
-    cv::Mat H = cv::findHomography(mp2pixel, kpcurr, CV_RANSAC, 3, RansacStatus);
-
-    vector<MapPoint::Ptr> match_3dpts_after_ransac;
-    vector<int> match_2dkp_index_after_ransac;
-    Mat descMapPoints_after_ransac;
-    int index = 0;
-    for (size_t i=0; i<RansacStatus.size(); i++) {
-       if (RansacStatus[i] != 0) {
-           match_3dpts_after_ransac.push_back(match_3dpts_before_ransac[i]);
-           match_2dkp_index_after_ransac.push_back(match_2dkp_index_before_ransac[i]);
-           descMapPoints_after_ransac.push_back(descMapPoints_before_ransac.row(i).clone());
-
-           index++;
-       }
-    }
-
-    // update matched mappoints and description
-    match_3dpts_.swap(match_3dpts_after_ransac);
-    match_2dkp_index_.swap(match_2dkp_index_after_ransac);
-
-    // show match
-    cv::Mat img1_show, img2_show;
-    cv::cvtColor(ref_->imgLeft_, img1_show, CV_GRAY2BGR);
-    cv::cvtColor(curr_->imgLeft_, img2_show, CV_GRAY2BGR);
-    cv::Mat img_match_show(2*img1_show.rows, img1_show.cols, CV_8UC3);
-    img1_show.copyTo(img_match_show(cv::Rect(0, 0, img1_show.cols, img1_show.rows)));
-    img2_show.copyTo(img_match_show(cv::Rect(0, img1_show.rows, img2_show.cols, img2_show.rows)));
-
-    for (size_t i=0; i<match_3dpts_.size(); i++) {
-        float b = 255*float ( rand() ) /RAND_MAX;
-        float g = 255*float ( rand() ) /RAND_MAX;
-        float r = 255*float ( rand() ) /RAND_MAX;
-        Vector2d pixel = ref_->camera_->world2pixel(match_3dpts_[i]->pos_, ref_->Tcw_);
-        cv::circle(img_match_show, cv::Point2d(pixel[0], pixel[1]), 3, cv::Scalar(b,g,r), 2);
-        cv::circle(img_match_show, cv::Point2d(keypointsCurr_[match_2dkp_index_[i]].pt.x, keypointsCurr_[match_2dkp_index_[i]].pt.y+img1_show.rows), 3, cv::Scalar(b,g,r), 2);
-        cv::line(img_match_show, cv::Point2d(pixel[0], pixel[1]), cv::Point2d(keypointsCurr_[match_2dkp_index_[i]].pt.x, keypointsCurr_[match_2dkp_index_[i]].pt.y+img1_show.rows), cv::Scalar(b,g,r), 1);
-    }
-    cv::imshow("matches", img_match_show);
-    cv::waitKey(0);
-*/
 
     cout << "[VO] good matches: " << match_3dpts_.size() << endl;
     cout << "[VO] match cost time: " << timer.elapsed() << endl;
@@ -209,7 +151,7 @@ void VisualOdometry::poseEstimationPnP()
         cerr << "[VO] good matches size is less then 4, cannot estimate PnP." << endl;
         return;
     }
-    // construct the 3d 2d observations
+    // 构造3纬、2纬观测
     vector<cv::Point3f> pts3d;
     vector<cv::Point2f> pts2d;
 
@@ -238,7 +180,7 @@ void VisualOdometry::poseEstimationPnP()
     Tcw_estimated_ = SE3(SO3(rvec.at<double>(0,0), rvec.at<double>(1,0), rvec.at<double> (2,0)),
                          Vector3d(tvec.at<double>(0,0), tvec.at<double>(1,0), tvec.at<double>(2,0)) );
 
-    // using bundle adjustment to optimize the pose
+    // 用BA优化位姿
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<6,2>> Block;
     std::unique_ptr<Block::LinearSolverType> linearSolver(new g2o::LinearSolverDense<Block::PoseMatrixType>());
     std::unique_ptr<Block> solver_ptr( new Block(std::move(linearSolver)) );
@@ -254,7 +196,7 @@ void VisualOdometry::poseEstimationPnP()
     // 边
     for ( int i=0; i<inliers.rows; i++ ) {
         int index = inliers.at<int>(i, 0);
-        // 3D -> 2D projection
+        // 三维到二维的投影
         EdgeProjectXYZ2UVPoseOnly* edge = new EdgeProjectXYZ2UVPoseOnly();
         edge->setId(i);
         edge->setVertex(0, pose);
@@ -279,53 +221,54 @@ void VisualOdometry::poseEstimationPnP()
 
 void VisualOdometry::poseEstimationICP()
 {
-    vector<cv::Point3f> pts_map;
-    vector<cv::Point3f> pts_curr;
+    vector<Vector3d> pts_map;
+    vector<Vector3d> pts_curr;
 
     for (int index : match_2dkp_index_) {
-        cv::Point3f pcurr = cv::Point3f(keypointsCurr_[index].pt.x,
-                                        keypointsCurr_[index].pt.y,
-                                        depthCurr_[index]);
+        Vector3d pcurr = Vector3d(keypointsCurr_[index].pt.x,
+                                  keypointsCurr_[index].pt.y,
+                                  depthCurr_[index]);
         pts_curr.push_back(pcurr);
     }
     for (MapPoint::Ptr pt : match_3dpts_) {
-        pts_map.push_back(pt->getPositionCV());
+        cv::Point3f pmap = pt->getPositionCV();
+        pts_map.push_back(Vector3d(pmap.x, pmap.y, pmap.z));
     }
 
     // ICP
-    // center of mass
-    cv::Point3f p1, p2;
-    int N = pts_map.size();
-    for (size_t i=0; i<N; i++) {
+    // 质心
+    Vector3d p1, p2;
+    uint N = pts_map.size();
+    for (uint i=0; i<N; i++) {
         p1 += pts_map[i];
         p2 += pts_curr[i];
     }
     p1 /= N;
     p2 /= N;
 
-    // remove the center
-    vector<cv::Point3f>  q1(N), q2(N);
-    for (int i=0; i<N; i++) {
+    // 去质心坐标
+    vector<Vector3d>  q1(N), q2(N);
+    for (uint i=0; i<N; i++) {
         q1[i] = pts_map[i] - p1;
         q2[i] = pts_curr[i] - p2;
     }
 
-    // compute q1*q2^T
+    // 计算q1*q2^T
     Eigen::Matrix3d W = Eigen::Matrix3d::Zero();
-    for ( int i=0; i<N; i++ ) {
-        W += Eigen::Vector3d(q1[i].x, q1[i].y, q1[i].z) * Eigen::Vector3d(q2[i].x, q2[i].y, q2[i].z ).transpose();
+    for ( uint i=0; i<N; i++ ) {
+        W += Eigen::Vector3d(q1[i][0], q1[i][1], q1[i][2]) * Eigen::Vector3d(q2[i][0], q2[i][1], q2[i][2]).transpose();
     }
 
-    // SVD on W
+    // 用SVD解W
     Eigen::JacobiSVD<Eigen::Matrix3d> svd( W, Eigen::ComputeFullU | Eigen::ComputeFullV );
     Eigen::Matrix3d U = svd.matrixU();
     Eigen::Matrix3d V = svd.matrixV();
 
     Eigen::Matrix3d R_ = U * V.transpose();
-    Eigen::Vector3d t_ = Eigen::Vector3d(p1.x, p1.y, p1.z) - R_ * Eigen::Vector3d(p2.x, p2.y, p2.z);
+    Eigen::Vector3d t_ = Eigen::Vector3d(p1[0], p1[1], p1[2]) - R_ * Eigen::Vector3d(p2[0], p2[1], p2[2]);
     Tcw_estimated_ = SE3(SO3(R_), t_);
 
-    // using bundle adjustment to optimize the pose
+    // BA优化位姿
     typedef g2o::BlockSolver<g2o::BlockSolverTraits<6,2>> Block;
     std::unique_ptr<Block::LinearSolverType> linearSolver(new g2o::LinearSolverDense<Block::PoseMatrixType>());
     std::unique_ptr<Block> solver_ptr( new Block(std::move(linearSolver)) );
@@ -339,14 +282,13 @@ void VisualOdometry::poseEstimationICP()
     optimizer.addVertex(pose);
 
     // 边
-    int index = 1;
+    uint index = 1;
     vector<EdgeProjectXYZRGBDPoseOnly*> edges;
-    for ( int i=0; i<N; i++ ) {
-        EdgeProjectXYZRGBDPoseOnly* edge = new EdgeProjectXYZRGBDPoseOnly(
-            Eigen::Vector3d(pts_curr[i].x, pts_curr[i].y, pts_curr[i].z) );
+    for ( uint i=0; i<N; i++ ) {
+        EdgeProjectXYZRGBDPoseOnly* edge = new EdgeProjectXYZRGBDPoseOnly(pts_curr[i]);
         edge->setId(index);
         edge->setVertex(0, dynamic_cast<g2o::VertexSE3Expmap*>(pose));
-        edge->setMeasurement(Eigen::Vector3d(pts_map[i].x, pts_map[i].y, pts_map[i].z));
+        edge->setMeasurement(pts_map[i]);
         edge->setInformation(Eigen::Matrix3d::Identity()*1e4);
         optimizer.addEdge(edge);
         index++;
@@ -362,24 +304,21 @@ void VisualOdometry::poseEstimationICP()
     );
 
     cout << "[VO] Tcw_estimated_ by PnP: " << endl << Tcw_estimated_.matrix() << endl;
-
 }
 
 bool VisualOdometry::checkEstimatedPose()
 {
     // 检查估计的位姿是否准确
-//    if ( numInliers_ < minInliers_ ) {
-    float rat = (float)numInliers_ / match_3dpts_.size();
-    if ( (float)numInliers_/(float)match_3dpts_.size() < 0.6 ) {
-        cout << "[VO] rat: " << rat << ", " << match_3dpts_.size() <<   endl;
-        cout << "[VO] reject because inlier is too small: " << numInliers_ << endl;
+    float ratio = (float)numInliers_ / (float)match_3dpts_.size();
+    if ( numInliers_ < minInliers_ && ratio < minRatio_  ) {
+        clog << "[VO] reject because inlier is too small: " << numInliers_ << ", or ratio is too low: " << ratio << endl;
         return false;
     }
     // 如果计算出的运动过大，可能计算出错，丢弃该帧
     SE3 Trc = ref_->Tcw_ * Tcw_estimated_.inverse();
     Sophus::Vector6d d = Trc.log();
     if ( d.norm() > 5.0 ) {
-        cout << "[VO] reject because motion is too large: " << d.norm() << endl;
+        clog << "[VO] reject because motion is too large: " << d.norm() << endl;
         return false;
     }
     return true;
@@ -401,7 +340,7 @@ bool VisualOdometry::checkKeyFrame()
 // 添加关键帧
 void VisualOdometry::addKeyFrame()
 {
-    // 第一帧的所有特针点都记为地图点中
+    // 第一帧的所有特征点都记为地图点中
     curr_->isKeyFrame_ = true;
 
     if ( map_->keyframes_.empty() ) {
@@ -488,23 +427,20 @@ void VisualOdometry::optimizeMap()
             continue;
         }
 
-//        double angle = getViewAngle(curr_, iter->second);
-//        if ( angle > M_PI/6.0 ) {
-//            iter = map_->map_points_.erase(iter);
-//            continue;
-//        }
-//        if ( iter->second->good_ == false ) {
-//            // TODO try triangulate this map point
-//        }
+        /* 目前没有发生过这种情况 */
+        if ( iter->second->good_ == false ) {
+            // TODO try triangulate this map point
+            clog << "[VO] there is a bad mappoint." << endl;
+        }
 
         iter++;
     }
 
     if ( match_2dkp_index_.size() < 100 ) {
-        cout << "[VO] matched points < 100, adding MapPoits." << endl;
+        cout << "[VO] matched points less then 100, adding MapPoits." << endl;
         addMapPoints();
     } else if ( map_->map_points_.size() > 1000 ) {
-        cout << "[VO] matched points > 1500, deleting MapPoits." << endl;
+        cout << "[VO] matched points bigger then 1000, deleting MapPoits." << endl;
         mapPointEraseRatio_ += 0.05; // 提高比值可以剔除更多MapPoint
     } else {
         mapPointEraseRatio_ = 0.1;
@@ -512,13 +448,5 @@ void VisualOdometry::optimizeMap()
 
     cout << "[VO] number of map_points(optimized): " << map_->map_points_.size() << endl;
 }
-
-double VisualOdometry::getViewAngle(Frame::Ptr frame, MapPoint::Ptr point)
-{
-    Vector3d n = point->pos_ - frame->getCameraCenter();
-    n.normalize();
-    return acos(n.transpose() * point->norm_);
-}
-
 
 } // namespace

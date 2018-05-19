@@ -24,13 +24,13 @@ namespace KittiStereo
 {
 
 MapPoint::MapPoint()
-    : id_(-1), good_(true), visibleTimes_(0), matchedTimes_(0),
+    : id_(-1), good_(false), visibleTimes_(0), matchedTimes_(0),
       pos_(Vector3d(0,0,0)), norm_(Vector3d(0,0,0))
 {}
 
 MapPoint::MapPoint(long unsigned int id, const Vector3d& position,
                    const Vector3d& norm, Frame* frame, const Mat& descriptor)
-    : id_(id), good_(true), visibleTimes_(1), matchedTimes_(1), pos_(position),
+    : id_(id), good_(false), visibleTimes_(1), matchedTimes_(1), pos_(position),
       norm_(norm),  descriptor_(descriptor)
 {
     observedFrames_.push_back(frame);

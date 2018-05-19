@@ -25,7 +25,7 @@
 namespace KittiStereo
 {
 
-// Pinhole RGBD camera model
+// 针孔相机模型
 class Camera
 {
 public:
@@ -37,7 +37,6 @@ public:
     float p1_, p2_;
     float fps_;             // 相机每秒帧数
     float bf_;              // 相机基线与fx的乘积，bf=b*f
-    int RGB_;               // 1 for RGB, 0 for BGR
     int width_, height_;    // 图像的尺寸
 
 public:

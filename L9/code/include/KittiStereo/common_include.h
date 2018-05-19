@@ -51,8 +51,9 @@ using cv::DMatch;
 #include <map>
 
 using std::cout;
-using std::endl;
 using std::cerr;
+using std::clog;
+using std::endl;
 using std::vector;
 using std::string;
 using std::shared_ptr;

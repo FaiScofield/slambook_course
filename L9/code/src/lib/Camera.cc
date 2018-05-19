@@ -35,7 +35,6 @@ Camera::Camera()
     p2_ = Config::get<float>("Camera.p2");
     fps_    = Config::get<float>("Camera.fps");
     bf_     = Config::get<float>("Camera.bf");
-    RGB_    = Config::get<int>("Camera.RGB");
     width_  = Config::get<int>("Camera.width");
     height_ = Config::get<int>("Camera.height");
 }

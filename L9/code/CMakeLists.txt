@@ -28,11 +28,6 @@ else()
    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-# set project files visible
-#file(HEADER_FILE ${PROJECT_SOURCE_DIR}/include/*.h)
-#source_group("Include" FILES ${CURRENT_HEADERS})
-#add_subdirectory(src)
-
 # Import thirdparty projects
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 set(OpenCV_DIR "/home/vance/softwares/opencv-3.3.1/build")
@@ -47,25 +42,17 @@ find_package(G2O REQUIRED)
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
     ${OpenCV_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
+#    ${PCL_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
     ${Pangolin_INCLUDE_DIRS}
     ${Sophus_INCLUDE_DIRS}
-    ${DBoW3_INCLUDE_DIRS}
     ${G2O_INCLUDE_DIRS}
 )
 
 # Genelize a library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-add_library(${PROJECT_NAME} SHARED
-    src/lib/Camera.cc
-    src/lib/Config.cc
-    src/lib/Frame.cc
-    src/lib/Map.cc
-    src/lib/MapPoint.cc
-    src/lib/VisualOdometry.cc
-    src/lib/g2o_types.cc
-)
+file(GLOB LIB_FILES "src/lib/*.cc")
+add_library(${PROJECT_NAME} SHARED ${LIB_FILES})
 target_link_libraries(${PROJECT_NAME}
     ${OpenCV_LIBS}
     ${EIGEN3_LIBS}
@@ -77,21 +64,15 @@ target_link_libraries(${PROJECT_NAME}
 
 # Build executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-#add_executable(stereo_kitti src/stereo_kitti.cpp)
-#target_link_libraries(stereo_kitti ${PROJECT_NAME})
-
-add_executable(run_vo src/run_vo.cpp)
-target_link_libraries(run_vo ${PROJECT_NAME})
+add_executable(stereo_kitti src/stereo_kitti.cpp)
+target_link_libraries(stereo_kitti ${PROJECT_NAME})
 
 add_executable(draw_trajectory_ICP src/draw_trajectory_ICP.cpp)
-target_link_libraries(draw_trajectory_ICP ${Pangolin_LIBRARIES} ${Sophus_LIBRARIES})
+target_link_libraries(draw_trajectory_ICP ${PROJECT_NAME})
 
 # test
-add_executable(disparity_test test/disparity_test.cpp)
-target_link_libraries(disparity_test ${PROJECT_NAME})
-
-add_executable(unordered_map_test test/unordered_map_test.cpp)
-target_link_libraries(unordered_map_test ${PROJECT_NAME})
-
-#add_executable(orb_test test/orb_test.cpp)
-#target_link_libraries(orb_test ${PROJECT_NAME})
+#add_executable(disparity_test test/disparity_test.cpp)
+#target_link_libraries(disparity_test ${PROJECT_NAME})
+#
+#add_executable(unordered_map_test test/unordered_map_test.cpp)
+#target_link_libraries(unordered_map_test ${PROJECT_NAME})

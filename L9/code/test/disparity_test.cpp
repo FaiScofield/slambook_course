@@ -69,7 +69,7 @@ void WriteToPCDFile(const std::string& filename, const vector<Vector4d, Eigen::a
        << '\n' << "POINTS " << pointcloud.size()
        << '\n' << "DATA ascii" << std::endl;
 
-    for(int i = 0; i < pointcloud.size(); ++i){
+    for(uint i = 0; i < pointcloud.size(); ++i){
       of << pointcloud[i][0] << ' ' << pointcloud[i][1] << ' ' << pointcloud[i][2] << ' ' << pointcloud[i][3] << '\n';
     }
 

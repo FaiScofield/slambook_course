@@ -1,3 +1,5 @@
+#include "KittiStereo/Config.h"
+
 #include <sophus/se3.h>
 #include <string>
 #include <iostream>
@@ -11,16 +13,11 @@ using namespace std;
 
 typedef vector<Sophus::SE3, Eigen::aligned_allocator<Sophus::SE3>> vector_poses;
 
-// path to trajectory file
-string trajectory_file = "../my_kitti_keyframe_trajectory.txt";
-string trajectory_index_file = "../my_kitti_keyframe_index.txt";
-string groundtruth_file = "/media/vance/00077298000E1760/dataset/KITTI/poses/05.txt";
-
 // function for read keyframe trajectory file and get poses
-void getPoses(const string& filename, vector_poses& pose);
+bool getPoses(const string& filename, vector_poses& pose);
 
 // function for read keyframe trajectory index file and get keyframe index
-void getPosesIndex(const string& filename, vector<int>& poses_index);
+bool getPosesIndex(const string& filename, vector<int>& poses_index);
 
 // fuction for ICP
 void ICP_solve(const vector_poses& p_e, const vector_poses& p_g, Eigen::Matrix3d& R, Eigen::Vector3d& t);
@@ -30,29 +27,52 @@ void ICP_solve(const vector_poses& p_e, const vector_poses& p_g, Eigen::Matrix3d
 void DrawTrajectory(const vector_poses& poses1, const vector_poses& poses2);
 
 // main
-int main(int argc, char **argv) {
 
+int main ( int argc, char** argv )
+{
+    // check the usage
+    if ( argc != 2 ) {
+        cerr << "- Usage: draw_trajectory_ICP parameter_file" << endl;
+        return -1;
+    }
+
+    // load the trajectory file
+    KittiStereo::Config::setParameterFile(argv[1]);
+    string trajectory_file = "../my_kitti_keyframe_trajectory.txt";
+    string trajectory_index_file = "../my_kitti_keyframe_index.txt";
+    string dataset_dir = KittiStereo::Config::get<string>("dataset_dir");
+    string sequence_num = KittiStereo::Config::get<string>("sequence_num");
+    string groundtruth_file = dataset_dir + "/../poses" + sequence_num + ".txt";
+    cout << "- groundtruth file on: " << groundtruth_file << endl;
+
+    // load poses
     vector_poses poses_e, poses_g, poses_g_cut;
     vector<int> poses_e_index;
-
-    getPoses(trajectory_file, poses_e);
-    getPoses(groundtruth_file, poses_g);
-    getPosesIndex(trajectory_index_file, poses_e_index);
-    cout << "get trajectory posese: " << poses_e.size() << endl;
-    cout << "get groundtruth posese: " << poses_g.size() << endl;
-    cout << "get trajectory index number: " << poses_e_index.size() << endl;
+    if ( !getPoses(trajectory_file, poses_e) ) {
+        cerr << "- Trajectory file can not be found! " << endl;
+        return -1;
+    }
+    if ( !getPoses(groundtruth_file, poses_g) ) {
+        cerr << "- Groundtruth file file can not be found! " << endl;
+        return -1;
+    }
+    if ( !getPosesIndex(trajectory_index_file, poses_e_index) ) {
+        cerr << "- Trajectory index file file can not be found! " << endl;
+        return -1;
+    }
+    cout << "- get trajectory posese: " << poses_e.size() << endl;
+    cout << "- get groundtruth posese: " << poses_g.size() << endl;
+    cout << "- get trajectory index number: " << poses_e_index.size() << endl;
 
     // cut poses_g to make the poses in same time
     for (auto& i : poses_e_index) {
         poses_g_cut.push_back(poses_g[i]);
     }
     if (poses_e.size() != poses_g_cut.size()) {
-        cerr << "keep two pose size same failed." << endl;
+        cerr << "- keep two pose size same failed." << endl;
         return -1;
     }
-    cout << "get groundtruth_cut posese: " << poses_g_cut.size() << endl;
-
-//    DrawTrajectory(poses_e, poses_g_cut);
+    cout << "- get groundtruth_cut posese: " << poses_g_cut.size() << endl;
 
     Eigen::Matrix3d R;
     Eigen::Vector3d t;
@@ -62,17 +82,17 @@ int main(int argc, char **argv) {
         pe.translation() = R * pe.translation() + t;
     }
 
-    cout << "Draw the trajectories..." << endl;
-    cout << "Red trajectory for estimate, green trajectory for groundtruth." << endl;
+    cout << "- Draw the trajectories..." << endl;
+    cout << "- Red trajectory for estimate, green trajectory for groundtruth." << endl;
     DrawTrajectory(poses_e, poses_g_cut);
 
     return 0;
 }
 
-/*******************************************************************************************/
+/***************************************************************************************/
 void DrawTrajectory(const vector_poses& poses1, const vector_poses& poses2) {
     if (poses1.empty() || poses2.empty()) {
-        cerr << "Trajectory is empty!" << endl;
+        cerr << "- Trajectory is empty!" << endl;
         return;
     }
 
@@ -135,20 +155,15 @@ void DrawTrajectory(const vector_poses& poses1, const vector_poses& poses2) {
 }
 
 
-void getPoses(const string& filename, vector_poses& pose){
+bool getPoses(const string& filename, vector_poses& pose){
     // implement pose reading code
     Eigen::Vector3d t(0, 0, 0);
     Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
     Eigen::Matrix4d T_m = Eigen::Matrix4d::Zero();
 
     string str;
-//    double timestamp;
-
     ifstream fin(filename.c_str());
-    if (!fin) {
-        cerr << "Trajectory file can not be found!" << endl;
-        return;
-    }
+    if (!fin) { return false; }
 
     while (!fin.eof()) {
         getline(fin, str);
@@ -168,18 +183,15 @@ void getPoses(const string& filename, vector_poses& pose){
     }
     fin.close();
 
-
+    return true;
 }
 
-void getPosesIndex(const string& filename, vector<int>& poses_index)
+bool getPosesIndex(const string& filename, vector<int>& poses_index)
 {
     int index;
     string str;
     ifstream fin(filename.c_str());
-    if (!fin) {
-        cerr << "Trajectory index file can not be found!" << endl;
-        return;
-    }
+    if (!fin) { return false; }
 
     while (!fin.eof()) {
         getline(fin, str);
@@ -189,6 +201,8 @@ void getPosesIndex(const string& filename, vector<int>& poses_index)
         poses_index.push_back(index);
     }
     fin.close();
+
+    return true;
 }
 
 void ICP_solve(const vector_poses& p_e, const vector_poses& p_g, Eigen::Matrix3d& R, Eigen::Vector3d& t){

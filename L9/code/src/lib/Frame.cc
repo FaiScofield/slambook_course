@@ -20,6 +20,8 @@
 #include "KittiStereo/Frame.h"
 #include "KittiStereo/Config.h"
 
+#include <boost/timer.hpp>
+
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
@@ -61,6 +63,7 @@ void Frame::setParameters(const Camera::Ptr camera, const cv::Mat img_left,
     imgLeft_        = img_left;
     imgRight_       = img_right;
     timeStamp_      = img_time;
+    viewMatches_    = KittiStereo::Config::get<int>("view_matches");
     numFeatures_    = KittiStereo::Config::get<int>("ORB.nFeatures");
     pyramidLevels_  = KittiStereo::Config::get<int>("ORB.pyramidLevels_");
     scaleFactor_    = KittiStereo::Config::get<float>("ORB.scaleFactor");
@@ -89,6 +92,7 @@ void Frame::computeStereoMatches()
         return;
 
     // 计算左右图像的ORB特征点并匹配
+    boost::timer timer;
     cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(numFeatures_, scaleFactor_, pyramidLevels_);
     cv::Ptr<cv::DescriptorExtractor> descriptor = cv::ORB::create(numFeatures_, scaleFactor_, pyramidLevels_);
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce-Hamming");
@@ -142,39 +146,39 @@ void Frame::computeStereoMatches()
            aft_ran_kpsr.push_back(kpsRight_2nd[i]);
            matches_2nd[i].queryIdx = index;
            matches_2nd[i].trainIdx = index;
-           matches_.push_back(matches_2nd[i]);  // matche index based on aft_ran_kps
+           matches_.push_back(matches_2nd[i]);  // 匹配的索引基于aft_ran_kps
            aft_ran_descl.push_back(descLeft_2nd.row(i).clone());
            index++;
        }
     }
+    cout << "[Frame] Matching costs time: " << timer.elapsed() << endl;
 
-    // update kps and description
+    // 更新特征点和对应的描述子成员变量
     kpsLeft_.swap(aft_ran_kpsl);
     kpsRight_.swap(aft_ran_kpsr);
-    descLeft_.resize(aft_ran_descl.rows, aft_ran_descl.cols);
-    aft_ran_descl.copyTo(descLeft_);
+    descLeft_ = aft_ran_descl.clone();
 
-    // show
+    // 显示左右两幅图的匹配情况
+    if (viewMatches_) {
+        cv::Mat img1_show, img2_show;
+        cv::cvtColor(imgLeft_, img1_show, CV_GRAY2BGR);
+        cv::cvtColor(imgRight_, img2_show, CV_GRAY2BGR);
+        cv::Mat img_match_show(2*img1_show.rows, img1_show.cols, CV_8UC3);
+        img1_show.copyTo(img_match_show(cv::Rect(0, 0, img1_show.cols, img1_show.rows)));
+        img2_show.copyTo(img_match_show(cv::Rect(0, img1_show.rows, img2_show.cols, img2_show.rows)));
 
-    cv::Mat img1_show, img2_show;
-    cv::cvtColor(imgLeft_, img1_show, CV_GRAY2BGR);
-    cv::cvtColor(imgRight_, img2_show, CV_GRAY2BGR);
-    cv::Mat img_match_show(2*img1_show.rows, img1_show.cols, CV_8UC3);
-    img1_show.copyTo(img_match_show(cv::Rect(0, 0, img1_show.cols, img1_show.rows)));
-    img2_show.copyTo(img_match_show(cv::Rect(0, img1_show.rows, img2_show.cols, img2_show.rows)));
+        for (auto &m : matches_) {
+            float b = 255*float ( rand() ) /RAND_MAX;
+            float g = 255*float ( rand() ) /RAND_MAX;
+            float r = 255*float ( rand() ) /RAND_MAX;
+            cv::circle(img_match_show, cv::Point2d(kpsLeft_[m.queryIdx].pt.x, kpsLeft_[m.queryIdx].pt.y), 3, cv::Scalar(b,g,r), 2);
+            cv::circle(img_match_show, cv::Point2d(kpsRight_[m.trainIdx].pt.x, kpsRight_[m.trainIdx].pt.y+imgLeft_.rows), 3, cv::Scalar(b,g,r), 2);
+            cv::line(img_match_show, cv::Point2d(kpsLeft_[m.queryIdx].pt.x, kpsLeft_[m.queryIdx].pt.y), cv::Point2d(kpsRight_[m.trainIdx].pt.x, kpsRight_[m.trainIdx].pt.y+imgLeft_.rows), cv::Scalar(b,g,r), 1);
 
-    for (auto &m : matches_) {
-        float b = 255*float ( rand() ) /RAND_MAX;
-        float g = 255*float ( rand() ) /RAND_MAX;
-        float r = 255*float ( rand() ) /RAND_MAX;
-        cv::circle(img_match_show, cv::Point2d(kpsLeft_[m.queryIdx].pt.x, kpsLeft_[m.queryIdx].pt.y), 3, cv::Scalar(b,g,r), 2);
-        cv::circle(img_match_show, cv::Point2d(kpsRight_[m.trainIdx].pt.x, kpsRight_[m.trainIdx].pt.y+imgLeft_.rows), 3, cv::Scalar(b,g,r), 2);
-        cv::line(img_match_show, cv::Point2d(kpsLeft_[m.queryIdx].pt.x, kpsLeft_[m.queryIdx].pt.y), cv::Point2d(kpsRight_[m.trainIdx].pt.x, kpsRight_[m.trainIdx].pt.y+imgLeft_.rows), cv::Scalar(b,g,r), 1);
-
+        }
+        cv::imshow("Matches between left & right images", img_match_show);
+        cv::waitKey(1);
     }
-    cv::imshow("Matches between left & right images", img_match_show);
-    cv::waitKey(1);
-
 }
 
 void Frame::computeDepth()
