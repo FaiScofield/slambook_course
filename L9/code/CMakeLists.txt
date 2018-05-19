@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
+
 project(KittiStereo)
 
-IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE Debug)
-ENDIF()
+# Set build type
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
 
-MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
+message("Build type: " ${CMAKE_BUILD_TYPE})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native")
@@ -26,15 +28,21 @@ else()
    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+# set project files visible
+#file(HEADER_FILE ${PROJECT_SOURCE_DIR}/include/*.h)
+#source_group("Include" FILES ${CURRENT_HEADERS})
+#add_subdirectory(src)
+
+# Import thirdparty projects
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+set(OpenCV_DIR "/home/vance/softwares/opencv-3.3.1/build")
 
 find_package(OpenCV 3.1.4 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Sophus REQUIRED )
-find_package(g2o REQUIRED)
-find_package(DBoW3 REQUIRED)
+find_package(G2O REQUIRED)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
@@ -47,12 +55,17 @@ include_directories(
     ${G2O_INCLUDE_DIRS}
 )
 
+# Genelize a library
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-
 add_library(${PROJECT_NAME} SHARED
-
+    src/lib/Camera.cc
+    src/lib/Config.cc
+    src/lib/Frame.cc
+    src/lib/Map.cc
+    src/lib/MapPoint.cc
+    src/lib/VisualOdometry.cc
+    src/lib/g2o_types.cc
 )
-
 target_link_libraries(${PROJECT_NAME}
     ${OpenCV_LIBS}
     ${EIGEN3_LIBS}
@@ -64,7 +77,21 @@ target_link_libraries(${PROJECT_NAME}
 
 # Build executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-
-#add_executable(stereo_kitti Examples/Stereo/stereo_kitti.cc)
+#add_executable(stereo_kitti src/stereo_kitti.cpp)
 #target_link_libraries(stereo_kitti ${PROJECT_NAME})
 
+add_executable(run_vo src/run_vo.cpp)
+target_link_libraries(run_vo ${PROJECT_NAME})
+
+add_executable(draw_trajectory_ICP src/draw_trajectory_ICP.cpp)
+target_link_libraries(draw_trajectory_ICP ${Pangolin_LIBRARIES} ${Sophus_LIBRARIES})
+
+# test
+add_executable(disparity_test test/disparity_test.cpp)
+target_link_libraries(disparity_test ${PROJECT_NAME})
+
+add_executable(unordered_map_test test/unordered_map_test.cpp)
+target_link_libraries(unordered_map_test ${PROJECT_NAME})
+
+#add_executable(orb_test test/orb_test.cpp)
+#target_link_libraries(orb_test ${PROJECT_NAME})

@@ -1,15 +1,15 @@
 %YAML:1.0
 
+# the kitti dataset directory, change it to yours! 
+dataset_dir: /media/vance/00077298000E1760/dataset/KITTI/sequences/01
+
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
-
-# Camera calibration and distortion parameters (OpenCV) 
-Camera.fx: 718.856
+Camera.fx: 718.856  # Camera calibration and distortion parameters (OpenCV) 
 Camera.fy: 718.856
 Camera.cx: 607.1928
 Camera.cy: 185.2157
-
 Camera.k1: 0.0
 Camera.k2: 0.0
 Camera.p1: 0.0
@@ -18,49 +18,24 @@ Camera.p2: 0.0
 Camera.width: 1241
 Camera.height: 376
 
-# Camera frames per second 
-Camera.fps: 10.0
-
-# stereo baseline times fx
-Camera.bf: 386.1448
-
-# Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
-Camera.RGB: 1
-
-# Close/Far threshold. Baseline times.
-ThDepth: 35
+Camera.fps: 10.0    # Camera frames per second 
+Camera.bf: 386.1448 # stereo baseline times fx
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters
 #--------------------------------------------------------------------------------------------
-
-# ORB Extractor: Number of features per image
-ORBextractor.nFeatures: 2000
-
-# ORB Extractor: Scale factor between levels in the scale pyramid 	
-ORBextractor.scaleFactor: 1.2
-
-# ORB Extractor: Number of levels in the scale pyramid	
-ORBextractor.nLevels: 8
-
-# ORB Extractor: Fast threshold
-# Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
-# Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
-# You can lower these values if your images have low contrast			
-ORBextractor.iniThFAST: 20
-ORBextractor.minThFAST: 7
+ORB.nFeatures: 2000     # ORB Extractor: Number of features per image
+ORB.scaleFactor: 1.2    # ORB Extractor: Scale factor between levels in the scale pyramid 	
+ORB.pyramidLevels_: 8          # ORB Extractor: Number of levels in the scale pyramid
 
 #--------------------------------------------------------------------------------------------
-# Viewer Parameters
+# VO Parameters
 #--------------------------------------------------------------------------------------------
-Viewer.KeyFrameSize: 0.6
-Viewer.KeyFrameLineWidth: 2
-Viewer.GraphLineWidth: 1
-Viewer.PointSize:2
-Viewer.CameraSize: 0.7
-Viewer.CameraLineWidth: 3
-Viewer.ViewpointX: 0
-Viewer.ViewpointY: -100
-Viewer.ViewpointZ: -0.1
-Viewer.ViewpointF: 2000
+match_ratio: 2              # 选最小距离的2倍作为特征点描述子的匹配距离阈值
+max_num_lost: 20            # 最大连续丢失帧数
+min_inliers: 20             # 最小匹配局内点数
+keyframe_rotation: 0.1      #
+keyframe_translation: 0.1   # 
+map_point_erase_ratio: 0.1  # MapPoint的 匹配次数/观测次数 比值，小于这个比值的MapPoint的将会被剔除
+viewer_matches:1            # 是否要显示左右图像的匹配情况
 
