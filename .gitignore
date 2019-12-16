@@ -1,4 +1,6 @@
-*build*
+*/build/*
+*/bin/*
+*/lib/*
 *.out
 CMakeCache.txt
 CMaeFiles
@@ -9,3 +11,6 @@ cmake_install.cmake
 *.user
 *lib*
 *bin*
+homework
+*/.vscode
+
